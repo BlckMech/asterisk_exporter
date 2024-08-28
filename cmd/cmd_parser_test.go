@@ -186,10 +186,14 @@ func TestNewPeersInfo_InvalidCommandOutput(t *testing.T) {
 		UnmonitoredOffline:   DefaultPeersInfo.UnmonitoredOffline,
 		PeersStatusUnknown:   0,
 		PeersStatusQualified: 0,
+		IndividualPeers:      []PeerInfo{},
 	}
 
-	if *result != expected {
-		t.Errorf("Peers info should take default values since the output is not well formatted.")
+	// if *result != expected {
+	// 	t.Errorf("Peers info should take default values since the output is not well formatted.")
+	// }
+	if !comparePeersInfo(*result, expected) {
+		t.Errorf("Peers info should take default values since the output is not well formatted.\nExpected: %+v\nGot: %+v", expected, *result)
 	}
 }
 
@@ -198,9 +202,38 @@ func TestNewPeersInfo_WhenCommandError(t *testing.T) {
 
 	result := cmdRunner.newPeersInfo("", err)
 
-	if *result != DefaultPeersInfo {
-		t.Errorf("Peers info should take default values since the command resulted in error.")
+	expected := DefaultPeersInfo
+
+	// if *result != DefaultPeersInfo {
+	// 	t.Errorf("Peers info should take default values since the command resulted in error.")
+	// }
+	if !comparePeersInfo(*result, expected) {
+		t.Errorf("Peers info should take default values since the command resulted in error.\nExpected: %+v\nGot: %+v", expected, *result)
 	}
+}
+func comparePeersInfo(a, b PeersInfo) bool {
+	if a.SipPeers != b.SipPeers ||
+		a.MonitoredOnline != b.MonitoredOnline ||
+		a.MonitoredOffline != b.MonitoredOffline ||
+		a.UnmonitoredOnline != b.UnmonitoredOnline ||
+		a.UnmonitoredOffline != b.UnmonitoredOffline ||
+		a.PeersStatusUnknown != b.PeersStatusUnknown ||
+		a.PeersStatusQualified != b.PeersStatusQualified {
+		return false
+	}
+
+	// Сравнение слайсов PeerInfo
+	if len(a.IndividualPeers) != len(b.IndividualPeers) {
+		return false
+	}
+
+	for i := range a.IndividualPeers {
+		if a.IndividualPeers[i] != b.IndividualPeers[i] {
+			return false
+		}
+	}
+
+	return true
 }
 
 //////////////////////////////////////////////////////////////////////////

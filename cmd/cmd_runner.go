@@ -33,6 +33,12 @@ type UptimeInfo struct {
 	LastReloadSeconds   int64
 }
 
+type PeerInfo struct {
+	Name    string
+	Status  string
+	Address string
+}
+
 // PeersInfo peers infos
 type PeersInfo struct {
 	// asterisk -rx 'sip show peers' | grep 'sip peers' | grep 'Monitored' | grep 'Unmonitored'"
@@ -46,6 +52,8 @@ type PeersInfo struct {
 	PeersStatusUnknown int64
 	// asterisk -rx 'sip show peers' | grep -P '^\d{3,}.*OK\s\(\d+' | wc -l"
 	PeersStatusQualified int64
+
+	IndividualPeers []PeerInfo
 }
 
 // ThreadsInfo threads infos
@@ -185,6 +193,7 @@ var (
 		UnmonitoredOffline:   -1,
 		PeersStatusUnknown:   -1,
 		PeersStatusQualified: -1,
+		IndividualPeers:      []PeerInfo{},
 	}
 
 	DefaultThreadsInfo = ThreadsInfo{

@@ -20,6 +20,8 @@ type sipCollector struct {
 	totalUnmonitoredOffline *prometheus.Desc
 	totalSipStatusUnknown   *prometheus.Desc
 	totalSipStatusQualified *prometheus.Desc
+	// for individual peer
+	peerStatus *prometheus.Desc
 
 	// sip show channels
 	dialogsActive *prometheus.Desc
@@ -80,6 +82,11 @@ func NewSipCollector(prefix string, cmdRunner *cmd.CmdRunner, logger log.Logger,
 			"Current number of qualified SIP",
 			nil, nil,
 		),
+		peerStatus: prometheus.NewDesc(
+			prometheus.BuildFQName(prefix, "sip", "peer_status"),
+			"Status of individual SIP peers",
+			[]string{"peer_name", "peer_status"}, nil,
+		),
 		dialogsActive: prometheus.NewDesc(
 			prometheus.BuildFQName(prefix, "sip", "active_dialogs"),
 			"Number of active SIP dialogs",
@@ -115,6 +122,7 @@ func (c *sipCollector) Describe(ch chan<- *prometheus.Desc) {
 	ch <- c.totalUnmonitoredOffline
 	ch <- c.totalSipStatusUnknown
 	ch <- c.totalSipStatusQualified
+	ch <- c.peerStatus
 	ch <- c.dialogsActive
 	ch <- c.subscriptionsActive
 	ch <- c.channelsActive
@@ -155,6 +163,15 @@ func (c *sipCollector) updateMetrics(values *sipMetrics, ch chan<- prometheus.Me
 	ch <- prometheus.MustNewConstMetric(c.totalUnmonitoredOffline, prometheus.GaugeValue, float64(values.PeersInfo.UnmonitoredOffline))
 	ch <- prometheus.MustNewConstMetric(c.totalSipStatusUnknown, prometheus.GaugeValue, float64(values.PeersInfo.PeersStatusUnknown))
 	ch <- prometheus.MustNewConstMetric(c.totalSipStatusQualified, prometheus.GaugeValue, float64(values.PeersInfo.PeersStatusQualified))
+
+	for _, peer := range values.PeersInfo.IndividualPeers {
+		ch <- prometheus.MustNewConstMetric(
+			c.peerStatus,
+			prometheus.GaugeValue,
+			1, // 1 указывает на наличие пира, 0 на его отсутствие.
+			peer.Name, peer.Status,
+		)
+	}
 
 	ch <- prometheus.MustNewConstMetric(c.dialogsActive, prometheus.GaugeValue, float64(values.SipChannelsInfo.ActiveSipDialogs))
 	ch <- prometheus.MustNewConstMetric(c.subscriptionsActive, prometheus.GaugeValue, float64(values.SipChannelsInfo.ActiveSipSubscriptions))

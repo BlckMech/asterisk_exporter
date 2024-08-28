@@ -2,6 +2,7 @@ package cmd
 
 import (
 	"errors"
+	"regexp"
 	"strings"
 
 	"github.com/docker/go-units"
@@ -99,6 +100,7 @@ func (c *CmdRunner) newPeersInfo(out string, err error) *PeersInfo {
 	}
 
 	setUnknownAndOkPeersCount(c.Logger, &obj, lines)
+	parseIndividualPeers(&obj, lines)
 
 	return &obj
 }
@@ -108,11 +110,18 @@ func setPeersInfoFromMonitoringInfoLine(logger log.Logger, obj *PeersInfo, line 
 
 	submatchall := AllNumbersRegexp.FindAllString(line, 5)
 
-	obj.SipPeers, errors[0] = util.StrToInt(submatchall[0])
-	obj.MonitoredOnline, errors[1] = util.StrToInt(submatchall[1])
-	obj.MonitoredOffline, errors[2] = util.StrToInt(submatchall[2])
-	obj.UnmonitoredOnline, errors[3] = util.StrToInt(submatchall[3])
-	obj.UnmonitoredOffline, errors[4] = util.StrToInt(submatchall[4])
+	if len(submatchall) >= 5 {
+		obj.SipPeers, errors[0] = util.StrToInt(submatchall[0])
+		obj.MonitoredOnline, errors[1] = util.StrToInt(submatchall[1])
+		obj.MonitoredOffline, errors[2] = util.StrToInt(submatchall[2])
+		obj.UnmonitoredOnline, errors[3] = util.StrToInt(submatchall[3])
+		obj.UnmonitoredOffline, errors[4] = util.StrToInt(submatchall[4])
+	} else {
+		// Если найденных элементов недостаточно, логируем ошибку
+		level.Error(logger).Log("err", "Expected at least 5 numbers in the line", "line", line)
+		// Устанавливаем значения по умолчанию
+		setPeersMonitoringInfoToDefault(obj)
+	}
 
 	return &errors
 }
@@ -123,6 +132,21 @@ func setPeersMonitoringInfoToDefault(obj *PeersInfo) {
 	obj.MonitoredOffline = DefaultPeersInfo.MonitoredOffline
 	obj.UnmonitoredOnline = DefaultPeersInfo.UnmonitoredOnline
 	obj.UnmonitoredOffline = DefaultPeersInfo.UnmonitoredOffline
+	obj.IndividualPeers = DefaultPeersInfo.IndividualPeers
+}
+
+func parseIndividualPeers(obj *PeersInfo, lines []string) {
+	peerLineRegexp := regexp.MustCompile(`(\S+)\s+\S+\s+\S+\s+\S+\s+\S+\s+\d+\s+([A-Za-z]+(?:\s*\(\d+\s*ms\))?)`)
+	for _, line := range lines {
+		if matches := peerLineRegexp.FindStringSubmatch(line); matches != nil {
+
+			peer := PeerInfo{
+				Name:   matches[1],
+				Status: matches[2],
+			}
+			obj.IndividualPeers = append(obj.IndividualPeers, peer)
+		}
+	}
 }
 
 func setUnknownAndOkPeersCount(logger log.Logger, obj *PeersInfo, lines []string) {
@@ -141,6 +165,10 @@ func setUnknownAndOkPeersCount(logger log.Logger, obj *PeersInfo, lines []string
 }
 
 func extractPeersInfoLine(lines []string) (string, error) {
+	if len(lines) == 0 {
+		// Обработка ошибки
+		return "", errors.New("not found peers info line in provided lines")
+	}
 	for _, line := range lines {
 		if strings.Contains(line, "sip peers") &&
 			strings.Contains(line, "Monitored:") &&
@@ -195,14 +223,23 @@ func (c *CmdRunner) newAgentsInfo(out string, err error) *AgentsInfo {
 
 	// Defined agents: 5, Logged in: 3, Talking: 1
 	submatchall := AllIntegersRegexp.FindAllString(lastLine, 3)
+	if len(submatchall) < 3 {
+		level.Error(c.Logger).Log("err", "Insufficient matches found in the last line", "line", lastLine)
+		return &DefaultAgentsInfo
+	}
 
 	return &AgentsInfo{
-		DefinedAgents: util.StrToIntOrDefault(c.Logger, submatchall[0], -1),
-		LoggedAgents:  util.StrToIntOrDefault(c.Logger, submatchall[1], -1),
-		TalkingAgents: util.StrToIntOrDefault(c.Logger, submatchall[2], -1),
+		DefinedAgents: util.StrToIntOrDefault(c.Logger, getValueOrDefault(submatchall, 0), -1),
+		LoggedAgents:  util.StrToIntOrDefault(c.Logger, getValueOrDefault(submatchall, 1), -1),
+		TalkingAgents: util.StrToIntOrDefault(c.Logger, getValueOrDefault(submatchall, 2), -1),
 	}
 }
-
+func getValueOrDefault(slice []string, index int) string {
+	if len(slice) > index {
+		return slice[index]
+	}
+	return ""
+}
 func (c *CmdRunner) newOnlineAgentsInfo(out string, err error) *OnlineAgentsInfo {
 	if err != nil {
 		level.Error(c.Logger).Log("err", err)
@@ -218,6 +255,10 @@ func (c *CmdRunner) newOnlineAgentsInfo(out string, err error) *OnlineAgentsInfo
 
 	// Defined agents: 5, Logged in: 3, Talking: 1
 	submatchall := AllIntegersRegexp.FindAllString(lastLine, 3)
+	if len(submatchall) < 3 {
+		level.Error(c.Logger).Log("err", "Insufficient matches found in the last line", "line", lastLine)
+		return &DefaultOnlineAgentsInfo
+	}
 
 	return &OnlineAgentsInfo{
 		OnlineDefinedAgents: util.StrToIntOrDefault(c.Logger, submatchall[0], -1),
