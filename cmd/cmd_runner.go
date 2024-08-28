@@ -56,6 +56,25 @@ type PeersInfo struct {
 	IndividualPeers []PeerInfo
 }
 
+// RegistryInfo хранит информацию о каждой SIP регистрации
+type RegistryInfo struct {
+	Host             string // SIP канал, к которому осуществляется регистрация
+	Username         string // Имя пользователя
+	Refresh          string // Время обновления в секундах
+	State            string // Статус регистрации
+	RegistrationTime string // Время последней регистрации
+}
+
+// RegistriesInfo хранит сводную информацию о всех регистрациях
+type RegistriesInfo struct {
+	// asterisk -rx 'sip show registry' | grep -E '(\d) SIP registrations'
+	OnlineRegistrations  int64
+	OfflineRegistrations int64
+	TotalRegistrations   int64
+	// asterisk -rx 'sip show registry' | grep -P '^\S+\s+\S+\s+\S+\s+\S+\s+'
+	IndividualRegistrations []RegistryInfo
+}
+
 // ThreadsInfo threads infos
 type ThreadsInfo struct {
 	ThreadCount int64
@@ -194,6 +213,12 @@ var (
 		PeersStatusUnknown:   -1,
 		PeersStatusQualified: -1,
 		IndividualPeers:      []PeerInfo{},
+	}
+	DefaultRegistriesInfo = RegistriesInfo{
+		OnlineRegistrations:     -1,
+		OfflineRegistrations:    -1,
+		TotalRegistrations:      -1,
+		IndividualRegistrations: []RegistryInfo{},
 	}
 
 	DefaultThreadsInfo = ThreadsInfo{
@@ -336,6 +361,12 @@ func (c *CmdRunner) ChannelsInfo() *ChannelsInfo {
 func (c *CmdRunner) PeersInfo() *PeersInfo {
 	out, err := c.run("sip show peers")
 	return c.newPeersInfo(out, err)
+}
+
+// RegistriesInfo get registry infos
+func (c *CmdRunner) RegistriesInfo() *RegistriesInfo {
+	out, err := c.run("sip show registry")
+	return c.newRegistriesInfo(out, err)
 }
 
 // ThreadsInfo get threads infos

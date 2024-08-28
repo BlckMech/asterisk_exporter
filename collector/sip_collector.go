@@ -33,6 +33,12 @@ type sipCollector struct {
 	// sip show users
 	users *prometheus.Desc
 
+	// sip show registry
+	totalRegistrations        *prometheus.Desc
+	onlineRegistrationsCount  *prometheus.Desc
+	offlineRegistrationsCount *prometheus.Desc
+	registrationStatus        *prometheus.Desc
+
 	collectorError *prometheus.Desc
 }
 
@@ -40,6 +46,7 @@ type sipMetrics struct {
 	PeersInfo       *cmd.PeersInfo
 	SipChannelsInfo *cmd.SipChannelsInfo
 	UsersInfo       *cmd.UsersInfo
+	RegistriesInfo  *cmd.RegistriesInfo
 }
 
 func NewSipCollector(prefix string, cmdRunner *cmd.CmdRunner, logger log.Logger, collectorError *prometheus.Desc) Collector {
@@ -107,6 +114,26 @@ func NewSipCollector(prefix string, cmdRunner *cmd.CmdRunner, logger log.Logger,
 			"Number of users",
 			nil, nil,
 		),
+		totalRegistrations: prometheus.NewDesc(
+			prometheus.BuildFQName(prefix, "sip", "total_registrations"),
+			"Total number of SIP registrations",
+			nil, nil,
+		),
+		onlineRegistrationsCount: prometheus.NewDesc(
+			prometheus.BuildFQName(prefix, "sip", "registered_count"),
+			"Number of successfully registered SIP accounts",
+			nil, nil,
+		),
+		offlineRegistrationsCount: prometheus.NewDesc(
+			prometheus.BuildFQName(prefix, "sip", "unregistered_count"),
+			"Number of unregistered SIP accounts",
+			nil, nil,
+		),
+		registrationStatus: prometheus.NewDesc(
+			prometheus.BuildFQName(prefix, "sip", "registration_status"),
+			"Status of individual SIP registrations",
+			[]string{"host", "username", "state"}, nil,
+		),
 	}
 }
 
@@ -127,6 +154,10 @@ func (c *sipCollector) Describe(ch chan<- *prometheus.Desc) {
 	ch <- c.subscriptionsActive
 	ch <- c.channelsActive
 	ch <- c.users
+	ch <- c.totalRegistrations
+	ch <- c.onlineRegistrationsCount
+	ch <- c.offlineRegistrationsCount
+	ch <- c.registrationStatus
 }
 
 func (c *sipCollector) Collect(ch chan<- prometheus.Metric) {
@@ -151,6 +182,7 @@ func collectSipMetrics(c *cmd.CmdRunner) (*sipMetrics, error) {
 		PeersInfo:       c.PeersInfo(),
 		SipChannelsInfo: c.SipChannelsInfo(),
 		UsersInfo:       c.UsersInfo(),
+		RegistriesInfo:  c.RegistriesInfo(),
 	}
 
 	return metrics, nil
@@ -178,6 +210,19 @@ func (c *sipCollector) updateMetrics(values *sipMetrics, ch chan<- prometheus.Me
 	ch <- prometheus.MustNewConstMetric(c.channelsActive, prometheus.GaugeValue, float64(values.SipChannelsInfo.ActiveSipChannels))
 
 	ch <- prometheus.MustNewConstMetric(c.users, prometheus.GaugeValue, float64(values.UsersInfo.Users))
+
+	ch <- prometheus.MustNewConstMetric(c.totalRegistrations, prometheus.GaugeValue, float64(values.RegistriesInfo.TotalRegistrations))
+	ch <- prometheus.MustNewConstMetric(c.onlineRegistrationsCount, prometheus.GaugeValue, float64(values.RegistriesInfo.OnlineRegistrations))
+	ch <- prometheus.MustNewConstMetric(c.offlineRegistrationsCount, prometheus.GaugeValue, float64(values.RegistriesInfo.OfflineRegistrations))
+
+	for _, registry := range values.RegistriesInfo.IndividualRegistrations {
+		ch <- prometheus.MustNewConstMetric(
+			c.registrationStatus,
+			prometheus.GaugeValue,
+			1, // 1 указывает на наличие регистрации.
+			registry.Host, registry.Username, registry.State,
+		)
+	}
 
 	level.Debug(c.logger).Log("msg", "sip metrics built")
 }

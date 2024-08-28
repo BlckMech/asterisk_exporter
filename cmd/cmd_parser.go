@@ -136,7 +136,7 @@ func setPeersMonitoringInfoToDefault(obj *PeersInfo) {
 }
 
 func parseIndividualPeers(obj *PeersInfo, lines []string) {
-	peerLineRegexp := regexp.MustCompile(`^(\S+(?:\/\S+)?)(?:\s+.*?){5}\s+(\b(?:OK|UNKNOWN|UNREACHABLE|Lagged)\b.*)$`)
+	peerLineRegexp := regexp.MustCompile(`^(\S+(?:\/\S+)?)(?:\s+.*?){5}\s+(\b(?:OK|UNKNOWN|UNREACHABLE|LAGGED)\b.*)$`)
 	for _, line := range lines {
 		if matches := peerLineRegexp.FindStringSubmatch(line); matches != nil {
 
@@ -178,6 +178,57 @@ func extractPeersInfoLine(lines []string) (string, error) {
 	}
 
 	return "", errors.New("not found peers info line in provided lines")
+}
+
+// newRegistriesInfo parses the output of 'sip show registry' and returns RegistriesInfo
+func (c *CmdRunner) newRegistriesInfo(out string, err error) *RegistriesInfo {
+	if err != nil {
+		level.Error(c.Logger).Log("err", err)
+		return &RegistriesInfo{}
+	}
+
+	obj := RegistriesInfo{}
+	lines := strings.Split(out, "\n")
+
+	if len(lines) == 0 {
+		level.Error(c.Logger).Log("err", err)
+		return &RegistriesInfo{}
+	}
+
+	// Parsing each line for individual registry information
+	parseIndividualRegistrations(&obj, lines)
+	setRegistryCounts(&obj)
+
+	return &obj
+}
+
+// parseIndividualRegistrations parses individual registration lines
+func parseIndividualRegistrations(obj *RegistriesInfo, lines []string) {
+	registryLineRegexp := regexp.MustCompile(`^(\S+)\s+(\S+)\s+\S+\s+(\d+)\s+(\S+)\s+(.*)$`)
+	for _, line := range lines {
+		if matches := registryLineRegexp.FindStringSubmatch(line); matches != nil {
+			registry := RegistryInfo{
+				Host:             matches[1],
+				Username:         matches[2],
+				Refresh:          matches[3],
+				State:            matches[4],
+				RegistrationTime: matches[5],
+			}
+			obj.IndividualRegistrations = append(obj.IndividualRegistrations, registry)
+		}
+	}
+}
+
+// setRegistryCounts calculates total registered and unregistered counts
+func setRegistryCounts(obj *RegistriesInfo) {
+	for _, reg := range obj.IndividualRegistrations {
+		if reg.State == "Registered" {
+			obj.OnlineRegistrations++
+		} else {
+			obj.OfflineRegistrations++
+		}
+	}
+	obj.TotalRegistrations = int64(len(obj.IndividualRegistrations))
 }
 
 func (c *CmdRunner) newThreadsInfo(out string, err error) *ThreadsInfo {
