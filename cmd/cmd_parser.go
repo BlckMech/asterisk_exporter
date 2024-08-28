@@ -136,7 +136,7 @@ func setPeersMonitoringInfoToDefault(obj *PeersInfo) {
 }
 
 func parseIndividualPeers(obj *PeersInfo, lines []string) {
-	peerLineRegexp := regexp.MustCompile(`^(\S+(?:\/\S+)?)(?:\s+.*?){5}\s+(\b(?:OK|UNKNOWN|UNREACHABLE|Lagged)\b.*)$`)
+	peerLineRegexp := regexp.MustCompile(`^(\S+(?:\/\S+)?)(?:\s+.*?){5}\s+(\b(?:OK|UNKNOWN|UNREACHABLE|LAGGED)\b.*)$`)
 	for _, line := range lines {
 		if matches := peerLineRegexp.FindStringSubmatch(line); matches != nil {
 
