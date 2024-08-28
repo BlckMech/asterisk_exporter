@@ -58,11 +58,11 @@ type PeersInfo struct {
 
 // RegistryInfo хранит информацию о каждой SIP регистрации
 type RegistryInfo struct {
-	Host             string // SIP канал, к которому осуществляется регистрация
-	Username         string // Имя пользователя
-	Refresh          string // Время обновления в секундах
-	State            string // Статус регистрации
-	RegistrationTime string // Время последней регистрации
+	// Host             string // SIP канал, к которому осуществляется регистрация
+	Username string // Имя пользователя
+	// Refresh          string // Время обновления в секундах
+	State string // Статус регистрации
+	// RegistrationTime string // Время последней регистрации
 }
 
 // RegistriesInfo хранит сводную информацию о всех регистрациях

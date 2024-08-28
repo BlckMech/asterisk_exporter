@@ -220,7 +220,7 @@ func (c *sipCollector) updateMetrics(values *sipMetrics, ch chan<- prometheus.Me
 			c.registrationStatus,
 			prometheus.GaugeValue,
 			1, // 1 указывает на наличие регистрации.
-			registry.Host, registry.Username, registry.State,
+			registry.Username, registry.State,
 		)
 	}
 

@@ -204,15 +204,15 @@ func (c *CmdRunner) newRegistriesInfo(out string, err error) *RegistriesInfo {
 
 // parseIndividualRegistrations parses individual registration lines
 func parseIndividualRegistrations(obj *RegistriesInfo, lines []string) {
-	registryLineRegexp := regexp.MustCompile(`^(\S+)\s+(\S+)\s+\S+\s+(\d+)\s+(\S+)\s+(.*)$`)
+	registryLineRegexp := regexp.MustCompile(`^\S+\s+\S+\s+(\S+)\s+\d+\s+(\S+)\s+.*$`)
 	for _, line := range lines {
 		if matches := registryLineRegexp.FindStringSubmatch(line); matches != nil {
 			registry := RegistryInfo{
-				Host:             matches[1],
-				Username:         matches[2],
-				Refresh:          matches[3],
-				State:            matches[4],
-				RegistrationTime: matches[5],
+				// Host:             matches[1],
+				Username: matches[1],
+				// Refresh:          matches[3],
+				State: matches[2],
+				// RegistrationTime: matches[5],
 			}
 			obj.IndividualRegistrations = append(obj.IndividualRegistrations, registry)
 		}
