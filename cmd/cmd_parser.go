@@ -110,18 +110,18 @@ func setPeersInfoFromMonitoringInfoLine(logger log.Logger, obj *PeersInfo, line 
 
 	submatchall := AllNumbersRegexp.FindAllString(line, 5)
 
-	if len(submatchall) >= 5 {
-		obj.SipPeers, errors[0] = util.StrToInt(submatchall[0])
-		obj.MonitoredOnline, errors[1] = util.StrToInt(submatchall[1])
-		obj.MonitoredOffline, errors[2] = util.StrToInt(submatchall[2])
-		obj.UnmonitoredOnline, errors[3] = util.StrToInt(submatchall[3])
-		obj.UnmonitoredOffline, errors[4] = util.StrToInt(submatchall[4])
-	} else {
-		// Если найденных элементов недостаточно, логируем ошибку
-		level.Error(logger).Log("err", "Expected at least 5 numbers in the line", "line", line)
-		// Устанавливаем значения по умолчанию
-		setPeersMonitoringInfoToDefault(obj)
-	}
+	// if len(submatchall) >= 5 {
+	obj.SipPeers, errors[0] = util.StrToInt(submatchall[0])
+	obj.MonitoredOnline, errors[1] = util.StrToInt(submatchall[1])
+	obj.MonitoredOffline, errors[2] = util.StrToInt(submatchall[2])
+	obj.UnmonitoredOnline, errors[3] = util.StrToInt(submatchall[3])
+	obj.UnmonitoredOffline, errors[4] = util.StrToInt(submatchall[4])
+	// } else {
+	// 	// Если найденных элементов недостаточно, логируем ошибку
+	// 	level.Error(logger).Log("err", "Expected at least 5 numbers in the line", "line", line)
+	// 	// Устанавливаем значения по умолчанию
+	// 	// setPeersMonitoringInfoToDefault(obj)
+	// }
 
 	return &errors
 }
@@ -136,9 +136,20 @@ func setPeersMonitoringInfoToDefault(obj *PeersInfo) {
 }
 
 func parseIndividualPeers(obj *PeersInfo, lines []string) {
-	peerLineRegexp := regexp.MustCompile(`^(\S+(?:\/\S+)?)(?:\s+.*?){5}\s+(\b(?:OK|UNKNOWN|UNREACHABLE|LAGGED)\b.*)$`)
+	peerLineRegexp := regexp.MustCompile(`^([^\/\s]+)(?:\/\S+)?(?:\s+.*?){5}\s+(\b(?:OK|UNKNOWN|UNREACHABLE|LAGGED)\b)`)
 	for _, line := range lines {
 		if matches := peerLineRegexp.FindStringSubmatch(line); matches != nil {
+			//UNREACH = 0, OK = 1, LAGGED = 2, UNKNOWN = 3
+			switch matches[2] {
+			case "UNREACHABLE":
+				matches[2] = "0"
+			case "OK":
+				matches[2] = "1"
+			case "LAGGED":
+				matches[2] = "2"
+			case "UNKNOWN":
+				matches[2] = "3"
+			}
 
 			peer := PeerInfo{
 				Name:   matches[1],
@@ -207,6 +218,11 @@ func parseIndividualRegistrations(obj *RegistriesInfo, lines []string) {
 	registryLineRegexp := regexp.MustCompile(`^\S+\s+\S+\s+(\S+)\s+\d+\s+(\S+)\s+.*$`)
 	for _, line := range lines {
 		if matches := registryLineRegexp.FindStringSubmatch(line); matches != nil {
+			if matches[2] == "Registered" {
+				matches[2] = "1"
+			} else {
+				matches[2] = "0"
+			}
 			registry := RegistryInfo{
 				// Host:             matches[1],
 				Username: matches[1],

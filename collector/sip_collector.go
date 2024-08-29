@@ -132,7 +132,7 @@ func NewSipCollector(prefix string, cmdRunner *cmd.CmdRunner, logger log.Logger,
 		registrationStatus: prometheus.NewDesc(
 			prometheus.BuildFQName(prefix, "sip", "registration_status"),
 			"Status of individual SIP registrations",
-			[]string{"host", "username", "state"}, nil,
+			[]string{"username", "state"}, nil,
 		),
 	}
 }
