@@ -110,18 +110,11 @@ func setPeersInfoFromMonitoringInfoLine(logger log.Logger, obj *PeersInfo, line 
 
 	submatchall := AllNumbersRegexp.FindAllString(line, 5)
 
-	// if len(submatchall) >= 5 {
 	obj.SipPeers, errors[0] = util.StrToInt(submatchall[0])
 	obj.MonitoredOnline, errors[1] = util.StrToInt(submatchall[1])
 	obj.MonitoredOffline, errors[2] = util.StrToInt(submatchall[2])
 	obj.UnmonitoredOnline, errors[3] = util.StrToInt(submatchall[3])
 	obj.UnmonitoredOffline, errors[4] = util.StrToInt(submatchall[4])
-	// } else {
-	// 	// Если найденных элементов недостаточно, логируем ошибку
-	// 	level.Error(logger).Log("err", "Expected at least 5 numbers in the line", "line", line)
-	// 	// Устанавливаем значения по умолчанию
-	// 	// setPeersMonitoringInfoToDefault(obj)
-	// }
 
 	return &errors
 }
@@ -189,6 +182,69 @@ func extractPeersInfoLine(lines []string) (string, error) {
 	}
 
 	return "", errors.New("not found peers info line in provided lines")
+}
+
+func (c *CmdRunner) newDNDsInfo(out string, err error) *DNDsInfo {
+	if err != nil {
+		level.Error(c.Logger).Log("err", err)
+		return nil
+	}
+
+	obj := DNDsInfo{}
+	lines := strings.Split(out, "\n")
+
+	// Регулярные выражения для извлечения данных
+	extensionRegexp := regexp.MustCompile(`^\/EXTENSIONS\/(\d+)\s*:\s*(\d+)`)
+	dndRegexp := regexp.MustCompile(`^\/CustomDevstate\/DND(\d+)\s*:\s*(\w+)`)
+	qdndRegexp := regexp.MustCompile(`^\/CustomDevstate\/qDND(\d+)\s*:\s*(\w+)`)
+
+	extMap := make(map[string]*ExtenInfo)
+
+	// Первый проход: собираем расширения
+	for _, line := range lines {
+		if extMatches := extensionRegexp.FindStringSubmatch(line); extMatches != nil {
+			ext := extMatches[1] // Номер экстена
+			key := extMatches[2] // Ключ базы данных
+
+			// Сохраняем данные о расширении
+			extMap[key] = &ExtenInfo{
+				Name:  ext,
+				DbKey: key,
+				DNDs:  &ExtStatus{DND: "0", QDND: "0"},
+			}
+		}
+	}
+
+	// Второй проход: ищем статусы DND и qDND
+	for _, line := range lines {
+		if dndMatches := dndRegexp.FindStringSubmatch(line); dndMatches != nil {
+
+			key := dndMatches[1] // Номер экстена
+
+			if extInfo, exists := extMap[key]; exists {
+
+				if dndMatches[2] == "BUSY" {
+					extInfo.DNDs.DND = "1"
+				}
+			}
+		} else if qdndMatches := qdndRegexp.FindStringSubmatch(line); qdndMatches != nil {
+
+			key := qdndMatches[1] // Номер экстена
+
+			if extInfo, exists := extMap[key]; exists {
+
+				if qdndMatches[2] == "RINGINUSE" {
+					extInfo.DNDs.QDND = "1"
+				}
+			}
+		}
+	}
+
+	// Добавляем расширения в результирующую структуру
+	for _, ext := range extMap {
+		obj.IndividualExtens = append(obj.IndividualExtens, *ext)
+	}
+	return &obj
 }
 
 // newRegistriesInfo parses the output of 'sip show registry' and returns RegistriesInfo

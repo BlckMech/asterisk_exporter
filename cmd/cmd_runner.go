@@ -56,6 +56,22 @@ type PeersInfo struct {
 	IndividualPeers []PeerInfo
 }
 
+type ExtenInfo struct {
+	Name  string
+	DbKey string
+	DNDs  *ExtStatus
+}
+
+// ExtStatus представляет состояние DND и qDND
+type ExtStatus struct {
+	DND  string
+	QDND string
+}
+
+type DNDsInfo struct {
+	IndividualExtens []ExtenInfo
+}
+
 // RegistryInfo хранит информацию о каждой SIP регистрации
 type RegistryInfo struct {
 	// Host             string // SIP канал, к которому осуществляется регистрация
@@ -361,6 +377,12 @@ func (c *CmdRunner) ChannelsInfo() *ChannelsInfo {
 func (c *CmdRunner) PeersInfo() *PeersInfo {
 	out, err := c.run("sip show peers")
 	return c.newPeersInfo(out, err)
+}
+
+// DndsInfo get dnd infos
+func (c *CmdRunner) DndsInfo() *DNDsInfo {
+	out, err := c.run("database show")
+	return c.newDNDsInfo(out, err)
 }
 
 // RegistriesInfo get registry infos

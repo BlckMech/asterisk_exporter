@@ -39,6 +39,9 @@ type sipCollector struct {
 	offlineRegistrationsCount *prometheus.Desc
 	registrationStatus        *prometheus.Desc
 
+	// DND
+	dndStatus *prometheus.Desc
+
 	collectorError *prometheus.Desc
 }
 
@@ -47,6 +50,7 @@ type sipMetrics struct {
 	SipChannelsInfo *cmd.SipChannelsInfo
 	UsersInfo       *cmd.UsersInfo
 	RegistriesInfo  *cmd.RegistriesInfo
+	DNDsInfo        *cmd.DNDsInfo
 }
 
 func NewSipCollector(prefix string, cmdRunner *cmd.CmdRunner, logger log.Logger, collectorError *prometheus.Desc) Collector {
@@ -134,6 +138,11 @@ func NewSipCollector(prefix string, cmdRunner *cmd.CmdRunner, logger log.Logger,
 			"Status of individual SIP registrations",
 			[]string{"username", "state"}, nil,
 		),
+		dndStatus: prometheus.NewDesc(
+			prometheus.BuildFQName(prefix, "sip", "dnd_status"),
+			"Status of individual DND for exten",
+			[]string{"exten", "state"}, nil,
+		),
 	}
 }
 
@@ -158,6 +167,7 @@ func (c *sipCollector) Describe(ch chan<- *prometheus.Desc) {
 	ch <- c.onlineRegistrationsCount
 	ch <- c.offlineRegistrationsCount
 	ch <- c.registrationStatus
+	ch <- c.dndStatus
 }
 
 func (c *sipCollector) Collect(ch chan<- prometheus.Metric) {
@@ -183,6 +193,7 @@ func collectSipMetrics(c *cmd.CmdRunner) (*sipMetrics, error) {
 		SipChannelsInfo: c.SipChannelsInfo(),
 		UsersInfo:       c.UsersInfo(),
 		RegistriesInfo:  c.RegistriesInfo(),
+		DNDsInfo:        c.DndsInfo(),
 	}
 
 	return metrics, nil
@@ -205,6 +216,15 @@ func (c *sipCollector) updateMetrics(values *sipMetrics, ch chan<- prometheus.Me
 		)
 	}
 
+	for _, ext := range values.DNDsInfo.IndividualExtens {
+		// Экспорт DND статуса для каждого расширения
+		ch <- prometheus.MustNewConstMetric(
+			c.dndStatus,
+			prometheus.GaugeValue,
+			1,
+			ext.Name, ext.DNDs.DND,
+		)
+	}
 	ch <- prometheus.MustNewConstMetric(c.dialogsActive, prometheus.GaugeValue, float64(values.SipChannelsInfo.ActiveSipDialogs))
 	ch <- prometheus.MustNewConstMetric(c.subscriptionsActive, prometheus.GaugeValue, float64(values.SipChannelsInfo.ActiveSipSubscriptions))
 	ch <- prometheus.MustNewConstMetric(c.channelsActive, prometheus.GaugeValue, float64(values.SipChannelsInfo.ActiveSipChannels))
